@@ -1,6 +1,7 @@
 import { Typography, IconButton, Box, Button, Select, MenuItem, Divider, Tooltip, useMediaQuery } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SearchIcon from '@mui/icons-material/Search';
 import { useSelector } from 'react-redux';
 import { selectCurrentPage, selectSelectedIndustry, selectUser } from '../../../features/auth/authSlice';
 import { selectLastRefreshed, selectHomeDashboardLoading, selectKpiDashboardData, selectRevenueGraphDetails, selectDepositLoanDetails, selectLoanOutstandingDetails, selectEngagementDetails, selectTotalProfitandLossRelationship, selectVolumeOfUsageDetails, selectrevenueAndProfitAtProductLevelDetails, selectInsightsDatalDetails, selectInsightsScreenData,  } from '../../../redux/store/dashboardSlice';
@@ -20,6 +21,9 @@ function MainPanel({ dashboardsReady, dashboardsLoading, executingQueries, curre
   const clientOptions = [
     { id: 1, name: 'Client Name 1' },
     { id: 2, name: 'Client Name 2' },
+    { id: 3, name: 'Client Name 3' },
+    { id: 4, name: 'Client Name 4' },
+    { id: 5, name: 'Client Name 5' },
   ];
   const currentPage = useSelector(selectCurrentPage) || 'dashboard';
   const lastRefreshed = useSelector(selectLastRefreshed);
@@ -42,9 +46,29 @@ function MainPanel({ dashboardsReady, dashboardsLoading, executingQueries, curre
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   // 🟢 Added state for Client, Notification, and ref
   const [client, setClient] = useState(clientOptions[0].id);
+  const [clientSearchInput, setClientSearchInput] = useState('');
+  const [debouncedSearchInput, setDebouncedSearchInput] = useState('');
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationAnchorRef = useRef(null);
+  const debounceTimerRef = useRef(null);
   const isSmallScreen = useMediaQuery('(max-width:900px)');
+
+  // Debounce the search input
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearchInput(clientSearchInput);
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [clientSearchInput]);
 
     useEffect(()=> {
        setClient(clientOptions[0].id);
@@ -82,10 +106,17 @@ const filterdtRevenueProfirPrductLevel = useMemo(() => {
   return filterVolumeOfUsageByClient(revenueProfitProductLevelData, client);
 }, [revenueProfitProductLevelData, client]);
 
-const filterdtInsightsDataDetails = useMemo(() => {
-  return filterVolumeOfUsageByClient(insightsScreenData, client);
-}, [insightsScreenData, client]);
+  const filterdtInsightsDataDetails = useMemo(() => {
+    return filterVolumeOfUsageByClient(insightsScreenData, client);
+  }, [insightsScreenData, client]);
 
+  // Filter clients based on debounced search input
+  const filteredClientOptions = useMemo(() => {
+    return clientOptions.filter((item) =>
+      item.name.toLowerCase().includes(debouncedSearchInput.toLowerCase())
+    );
+  }, [debouncedSearchInput]);
+  
   const renderDashboard = () => {
     switch (currentPage) {
       case 'insight':
@@ -191,25 +222,79 @@ const filterdtInsightsDataDetails = useMemo(() => {
 
         <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.5)' }} />
 
-        {/* Client Dropdown */}
-        <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
+        {/* Client Dropdown with Search */}
+        <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '12px' }}>
           Client&nbsp;:&nbsp;
           <Select
             value={client}
-            onChange={(e) => setClient(e.target.value)}
+            onChange={(e) => {
+              setClient(e.target.value);
+              setClientSearchInput('');
+            }}
             variant="standard"
             disableUnderline
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  scrollbarWidth: 'thin',
+                }
+              }
+            }}
             sx={{
               color: '#fff',
               paddingTop: '2px',
               fontSize: '10px',
               '& .MuiSelect-icon': { color: '#fff', fontSize: '12px' },
             }}>
-            {clientOptions.map((item) => (
-              <MenuItem key={item.id} value={item.id} sx={{ fontSize: '10px' }}>
-                {item.name}
+            {/* Search Input in Menu Header */}
+            <MenuItem disableRipple disableTouchRipple sx={{ padding: 0, '&:hover': { backgroundColor: 'transparent' } }}>
+              <Box
+                sx={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#f5f5f5',
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}>
+                <SearchIcon sx={{ fontSize: '16px', color: '#999' }} />
+                <input
+                  type="text"
+                  placeholder="Search clients..."
+                  value={clientSearchInput}
+                  onChange={(e) => setClientSearchInput(e.target.value)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  style={{
+                    border: '1px solid #ddd',
+                    outline: 'none',
+                    width: '100%',
+                    padding: '6px 8px',
+                    fontSize: '12px',
+                    fontFamily: 'Roboto, sans-serif',
+                    borderRadius: '4px',
+                  }}
+                />
+              </Box>
+            </MenuItem>
+
+            {/* Client Options */}
+            {filteredClientOptions.length > 0 ? (
+              filteredClientOptions.map((item) => (
+                <MenuItem key={item.id} value={item.id} sx={{ fontSize: '10px' }}>
+                  {item.name}
+                </MenuItem>
+              ))
+            ) : (
+              <MenuItem disabled sx={{ fontSize: '10px' }}>
+                No clients found
               </MenuItem>
-            ))}
+            )}
           </Select>
         </Typography>
       </Box>

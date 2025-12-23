@@ -119,7 +119,7 @@ export default function GenerateReport({ open, onClose }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth className={styles.generateReportDialog}>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth className={styles.generateReportDialog} sx={{marginLeft:"30%"}}>
       <IconButton onClick={onClose} className={styles.closeBtn}>
         <CloseIcon />
       </IconButton>
@@ -163,18 +163,77 @@ export default function GenerateReport({ open, onClose }) {
         </Box>
 
         {/* Preview / Generate Area */}
-        {/* Preview / Generate Area */}
         <Box className={styles.previewBox}>
           {loading ? (
             <CircularProgress color="success" />
           ) : isGenerated ? (
             <Box className={styles.previewContent}>
-              {/* 🔹 Image shown after generation */}
-              <img src={reportPreview} alt={`${templateType} preview`} className={styles.previewImage} />
-              {/* 🔹 Template info / text */}
-              <Typography variant="body2" className={styles.previewText}>
-                {previewText}
-              </Typography>
+              {/* 🔹 Report Container */}
+              <Box className={styles.reportContainer}>
+                {/* Logo Section */}
+                <Box className={styles.logoSection}>
+                  <Typography className={styles.logoText}>Associated Bank</Typography>
+                </Box>
+
+                {/* Relationship Summary Title */}
+                <Box className={styles.relationshipTitleSection}>
+                  <Typography className={styles.relationshipTitle}>
+                    Relationship Summary
+                  </Typography>
+                </Box>
+
+                {/* Summary Information Section */}
+                <Box className={styles.summarySection}>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Client Name</Typography>
+                  </Box>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Relationship Manager</Typography>
+                  </Box>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Officer ID</Typography>
+                  </Box>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Meeting Date</Typography>
+                  </Box>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Next Review Date</Typography>
+                  </Box>
+                  <Box className={styles.summaryRow}>
+                    <Typography className={styles.summaryLabel}>Current Risk Rating</Typography>
+                  </Box>
+                </Box>
+
+                {/* KPI Snapshot Section */}
+                <Box className={styles.kpiSection}>
+                  <Typography className={styles.sectionTitle}>
+                    KPI Snapshot
+                  </Typography>
+                  
+                  <Box className={styles.kpiTableWrapper}>
+                    <Box className={styles.kpiTableRow}>
+                      <Typography className={styles.kpiTableHeader}>KPI</Typography>
+                      <Typography className={styles.kpiTableHeader}>Current Value</Typography>
+                      <Typography className={styles.kpiTableHeader}>Trend/Comparison</Typography>
+                    </Box>
+
+                    {['Account Balance', 'Deposit Score', 'Loan Score', 'Deposit & Loan Relationship Score'].map((kpi) => (
+                      <Box key={kpi} className={styles.kpiTableRow}>
+                        <Typography className={styles.kpiTableCell}>{kpi}</Typography>
+                        <Typography className={styles.kpiTableCell}></Typography>
+                        <Typography className={styles.kpiTableCell}></Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Preview Text */}
+                {previewText && (
+                  <Typography variant="body2" className={styles.previewText}>
+                    {previewText}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           ) : (
             <Button variant="outlined" onClick={handleGenerate} className={styles.generateBtn} disabled={!templateType}>

@@ -69,7 +69,8 @@ const MessageChartComponent = ({ dataPoints, type = 'line', title = '', descript
   const parsedDataPoints = useMemo(() => {
     try {
       if (typeof dataPoints === 'string') {
-        return JSON.parse(dataPoints);
+        // return JSON.parse(dataPoints);
+        return typeof dataPoints === `string`? JSON.parse(dataPoints): dataPoints;
       }
       return dataPoints;
     } catch (error) {
@@ -99,7 +100,8 @@ const MessageChartComponent = ({ dataPoints, type = 'line', title = '', descript
           if (typeof callbackStr === 'string' && callbackStr.startsWith('function')) {
             // Convert function string to actual function
             try {
-              processed.options.plugins.tooltip.callbacks[callbackName] = new Function('return ' + callbackStr)();
+              // processed.options.plugins.tooltip.callbacks[callbackName] = new Function('return ' + callbackStr)();
+              processed.options.plugins.tooltip.callbacks[callbackName] = () => '';
             } catch (fnError) {
               console.error(`Error converting function string for ${callbackName}:`, fnError);
               // Provide a fallback function
@@ -112,7 +114,8 @@ const MessageChartComponent = ({ dataPoints, type = 'line', title = '', descript
       // Process callbacks in other places where they might exist
       if (processed.options?.onClick && typeof processed.options.onClick === 'string') {
         try {
-          processed.options.onClick = new Function('return ' + processed.options.onClick)();
+          // processed.options.onClick = new Function('return ' + processed.options.onClick)();
+          delete processed.options.onClick;
         } catch (fnError) {
           console.error('Error converting onClick function string:', fnError);
           delete processed.options.onClick;

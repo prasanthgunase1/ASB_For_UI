@@ -298,7 +298,8 @@ const ConversationScreen = ({ id, stableInstanceId = 'main', onSuggestedQuestion
 
       // Add random jitter (0-1000ms) to prevent synchronized requests (except for initial load)
       if (!forceInitialLoad) {
-        const jitter = Math.floor(Math.random() * 1000);
+        // const jitter = Math.floor(Math.random() * 1000);
+        const jitter = window.crypto.getRandomValues(new Uint32Array(1))[0]%1000;
         await new Promise((resolve) => setTimeout(resolve, jitter));
       }
 

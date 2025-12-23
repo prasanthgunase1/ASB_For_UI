@@ -60,8 +60,8 @@ const parseJsonSafely = (() => {
     }
 
     try {
-      const cleanedData = data.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
-      const result = JSON.parse(cleanedData);
+      // const cleanedData = data.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1');
+      const result = JSON.parse(data);
 
       if (cache.size >= MAX_CACHE_SIZE) {
         const firstKey = cache.keys().next().value;
@@ -104,9 +104,11 @@ const formatInsightBrief = (briefText) => {
       .replace(/<\/b>/gi, '**')
       .replace(/<strong[^>]*>/gi, '**')
       .replace(/<\/strong>/gi, '**')
-      .replace(/\s*•\s*/g, '\n• ')
+      // .replace(/\s*•\s*/g, '\n• ')
+      .replace(/\s{0,100}•\s{0,100}/g, '\n• ')
       .replace(/^\s+/gm, '')
-      .replace(/\n+/g, '\n')
+      // .replace(/\n+/g, '\n')
+      .replace(/\n{1,10}/g, '\n')
       .trim();
 
     const lines = cleanedHTML.split(/\n/).filter((line) => line.trim());

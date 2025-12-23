@@ -259,7 +259,8 @@ const [isOutsideAddDisabled, setIsOutsideAddDisabled] = useState(true);
     dispatch(setMessageCreaionProcessing(true));
 
     try {
-      const randomNumber = Math.floor(Math.random() * 10000);
+      // const randomNumber = Math.floor(Math.random() * 10000);
+      const randomNumber = window.crypto.getRandomValues(new Uint32Array(1))[0]%1000;
       let conversationId = activeConversationId;
 
       if (!conversationId || conversationId === 'new') {

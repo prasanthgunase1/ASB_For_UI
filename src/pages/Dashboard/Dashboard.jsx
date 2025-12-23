@@ -284,12 +284,14 @@ function Dashboard() {
     // should be update once the banking industry is added to the API
     if (industry?.name === 'Banking') {
       //open this link in  new tab : BANKING_INDUSTRY_XD
-      window.open(BANKING_INDUSTRY_XD, '_blank');
+      // window.open(BANKING_INDUSTRY_XD, '_blank');
+      window.open(BANKING_INDUSTRY_XD, '_blank', 'noopener,noreferrer');
       return;
     }
     if (industry?.name === 'Retail') {
       //open this link in  new tab : BANKING_INDUSTRY_XD
-      window.open(RETAIL_INDUSTRY_XD, '_blank');
+      // window.open(RETAIL_INDUSTRY_XD, '_blank');
+      window.open(BANKING_INDUSTRY_XD, '_blank', 'noopener,noreferrer');
       return;
     }
     setSelectedIndustry(industry);
