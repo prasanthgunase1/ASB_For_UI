@@ -9,7 +9,6 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import GroupIcon from '@mui/icons-material/Group';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import keycloak from '../../utils/keycloak';
 import PropTypes from 'prop-types';
 import TALogo from '../../assets/TA-logo.png';
 import { resetQueueState } from '../../redux/store/queueSlice';
@@ -131,11 +130,7 @@ function Dashboard() {
   const globallySelectedIndustryName = useSelector(selectSelectedIndustry);
 
   // Get authenticated user info
-  const user = useMemo(() => {
-    console.log('UI Deployment: 03 July');
-    if (!keycloak.authenticated) return null;
-    return keycloak.idTokenParsed;
-  }, []);
+  const user = useSelector(selectUser);
 
   // Fetch user data with proper skip condition
   const {
@@ -144,7 +139,7 @@ function Dashboard() {
     error: personasError,
     refetch: refetchUserData,
   } = useGetUserDataQuery(user?.email, {
-    skip: !user?.email || !keycloak.authenticated,
+    skip: !user?.email,
   });
 
   // Clear queue state when user data changes
@@ -216,41 +211,33 @@ function Dashboard() {
   // Handle auth state changes and data updates
   useEffect(() => {
     const handleAuthChange = async () => {
-      if (keycloak.authenticated && user?.email && transformedData) {
+      // User object from Redux auth slice already contains authenticated status and roles
+      if (user?.email && transformedData) {
         // Skip update if we already have the same data
         if (
           userFromState?.userId === transformedData.userId &&
-          userFromState?.authenticated === keycloak.authenticated
+          userFromState?.email === user?.email
         ) {
           return;
         }
 
-        // Extract roles from keycloak resourceAccess
-        let roles = [];
-        if (keycloak.resourceAccess) {
-          // Get all roles from all resources
-          Object.values(keycloak.resourceAccess).forEach((resource) => {
-            if (resource.roles && Array.isArray(resource.roles)) {
-              roles = [...roles, ...resource.roles];
-            }
-          });
-        }
+        // Roles are already in the user object from Redux (set by AuthProvider)
+        const roles = user?.roles || [];
 
         // Prepare the updated user data
         const updatedUserData = {
-          // Basic user info from keycloak
+          // Basic user info from Okta (already in Redux user object)
           ...user,
 
-          // Add roles extracted from keycloak
+          // Add roles if not already present
           roles: roles,
 
           // API data
           userId: transformedData.userId,
           industries: transformedData.industries,
 
-          // Auth state
-          authenticated: keycloak.authenticated,
-          token: keycloak.token,
+          // Auth state - user object existence indicates authenticated status
+          authenticated: !!user,
         };
 
         // If userFromState exists, preserve its additional properties
@@ -275,7 +262,7 @@ function Dashboard() {
 
   // Refetch data if auth state changes
   useEffect(() => {
-    if (keycloak.authenticated && user?.email) {
+    if (user?.email) {
       refetchUserData();
     }
   }, [user?.email, refetchUserData]);
@@ -361,9 +348,8 @@ const handlePersonaSelect = useCallback(
     dispatch(resetQueueState());
     setSelectedIndustry(null);
   }, [dispatch]);
-
   // Guard for unauthenticated state
-  if (!user || !keycloak.authenticated) {
+  if (!user) {
     return null;
   }
 

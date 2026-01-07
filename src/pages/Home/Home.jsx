@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Grid2 as Grid, Typography, Container } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import PreviousQueries from '../../components/PreviousQueries/PreviousQueries';
 import ChatIcon from '../../assets/GroupIcon.png';
 import classes from './Home.module.scss';
 import { setShowHomeScreen, setActiveConversation, updateConvesationId } from '../../redux/store/conversationSlice';
 import ChatInput from '../../components/ChatInput/ChatInput';
-import keycloak from '../../utils/keycloak';
+import { selectUser } from '../../features/auth/authSlice';
 
 function Home() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const user = keycloak?.idTokenParsed || '';
+  const user = useSelector(selectUser) || {};
   const [selectedQuery, setSelectedQuery] = useState('');
 
   useEffect(() => {

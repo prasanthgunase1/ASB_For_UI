@@ -74,6 +74,7 @@ function MainPanel({ dashboardsReady, dashboardsLoading, executingQueries, curre
        setClient(clientOptions[0].id);
      }, [currentPage]);
  
+  console.log(insightsScreenData , voumeOfUsageData,revenueProfitProductLevelData ,'insightsScreenData');
   const filteredKpis = useMemo(() => {
   return filterClientData(HomeKpiDetails, client);
 }, [HomeKpiDetails, client]);

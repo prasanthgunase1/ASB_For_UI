@@ -36,7 +36,7 @@ import AssociatedBankLogo from '../../../assets/Sidepanel/AssociatedBankLogo.svg
 import ProfileIcon from '../../../assets/Sidepanel/ProfileIcon.svg';
 import HelpIcon from '../../../assets/Sidepanel/HelpIcon.svg';
 import MainInfo from '../../../assets/Sidepanel/Main Info.svg';
-import keycloak from '../../../utils/keycloak';
+import { oktaLogout } from '../../../utils/okta';
 
 // ✅ Centralized role-to-menu mapping (easily extendable)
 const ROLE_MENU_CONFIG = {
@@ -113,7 +113,7 @@ function SidePanel({ onRefresh, isPolling, executingQueries, dashboardsReady, da
 
   const handleLogout = async () => {
     try {
-      await keycloak.logout();
+      await oktaLogout();
     } catch (error) {
       console.error('Logout failed:', error);
     }

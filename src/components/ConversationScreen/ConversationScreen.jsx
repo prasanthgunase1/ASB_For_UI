@@ -10,8 +10,7 @@ import {
   getIsLoadingConversationData,
   updateMessageResponseInConversation,
 } from '../../redux/store/conversationSlice';
-import { selectCurrentPageConversation as getConversationId } from '../../features/auth/authSlice';
-import keycloak from '../../utils/keycloak';
+import { selectCurrentPageConversation as getConversationId, selectUser } from '../../features/auth/authSlice';
 import MessageBubble from '../MessageBubble/MessageBubble';
 import { addToRunning, removeFromRunning, addToQueue, selectRunningMessages } from '../../redux/store/queueSlice';
 import { getSocket, initSocket } from '../../utils/socket';
@@ -75,7 +74,7 @@ const ConversationScreen = ({ id, stableInstanceId = 'main', onSuggestedQuestion
   const componentMountedRef = useRef(true);
   const previousConversationIdRef = useRef(null);
 
-  const user = keycloak?.idTokenParsed;
+  const user = useSelector(selectUser);
   const runningMessages = useSelector(selectRunningMessages);
 
   // Socket reference
@@ -314,10 +313,14 @@ const ConversationScreen = ({ id, stableInstanceId = 'main', onSuggestedQuestion
     [refetchConversation, socketConnected],
   );
 
-  // Initialize socket if needed - specifically for Azure environments
+  // Initialize socket if needed - MPA mode uses session cookies (no token needed)
   useEffect(() => {
-    if (!socket && keycloak?.token) {
-      initSocket(keycloak.token);
+    if (!socket) {
+      try {
+        initSocket();
+      } catch (error) {
+        console.error('Failed to initialize socket:', error);
+      }
     }
   }, [socket]);
 

@@ -1,32 +1,33 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { initializeApp, getCurrentUser, logout } from '../../utils/okta';
+import { initializeOkta, getOktaUser, getOktaAccessToken, oktaLogout } from '../../utils/okta';
 import PropTypes from 'prop-types';
+import { validateOktaConfig } from '../../utils/validator';
 import { AuthContext } from './AuthContext';
 import LinearLoader from '../../components/LinearLoader';
 import { useDispatch } from 'react-redux';
-import { initSocket } from '../../utils/socket';
+import { disconnectSocket, initSocket } from '../../utils/socket';
 import { setupSocketListeners } from '../../utils/socket/socketEvents';
 import { notifyViaSnackBar } from '../../redux/store/conversationSlice';
 import { setUser } from '../auth/authSlice';
 
 /**
- * AuthProvider component for MPA (Multi-Page Application) authentication
- * 
- * Changes from SPA:
- * - Backend handles all authentication via HTTPOnly cookies
- * - Frontend only checks if user has valid session
- * - No token management needed
- * - Simplified initialization logic
- * - Socket authentication uses session cookies instead of tokens
+ * AuthProvider component handling Okta authentication and socket connection
+ * with Azure-optimized settings for WebSockets
  *
- * @version 2.0.0 - MPA Architecture
+ * Features:
+ * - Okta authentication with PKCE flow
+ * - Automatic token refresh with socket reconnection
+ * - Timeout handling for socket connection
+ * - Better error handling and recovery
+ * - Role-based access control
  */
 const AuthProvider = ({ children }) => {
   const [initializationLoading, setInitializationLoading] = useState(true);
   const [authError, setAuthError] = useState();
   const socketInitializedRef = useRef(false);
   const connectionTimeoutRef = useRef(null);
+  const oktaAuthRef = useRef(null);
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,24 +44,24 @@ const AuthProvider = ({ children }) => {
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
+    disconnectSocket();
   };
 
-  
-
   /**
-   * Extract groups/roles from user object
+   * Extract groups/roles from Okta user object
+   * Okta stores group information in the groups claim or via group API
    */
   const extractUserRoles = (user) => {
     let userRoles = [];
 
-    // Check for groups in user object
+    // Check for groups in user object (if configured in Okta)
     if (user?.groups && Array.isArray(user.groups)) {
       userRoles = user.groups;
     }
 
-    // Check for roles in user object
-    if (user?.roles && Array.isArray(user.roles)) {
-      userRoles = [...userRoles, ...user.roles];
+    // Alternative: Check for app roles in custom claims
+    if (user?.app_roles && Array.isArray(user.app_roles)) {
+      userRoles = [...userRoles, ...user.app_roles];
     }
 
     // Remove duplicates
@@ -69,42 +70,43 @@ const AuthProvider = ({ children }) => {
     return userRoles;
   };
 
-  /**
-   * Initialize socket connection and set up event listeners
-   * Uses session cookies for authentication (no token needed)
-   */
-  const handleUserAuthenticatedEvents = async (user) => {
+  // Handle all events requiring user authentication
+  const handleUserAuthenticatedEvents = async (oktaAuth, user) => {
     if (socketInitializedRef.current) {
       return;
     }
 
     try {
-      // Extract roles from user object
+      // Extract roles from Okta user
       const userRoles = extractUserRoles(user);
 
       // Dispatch user info and roles to Redux
       dispatch(
         setUser({
-          sub: user.sub || user.id,
+          sub: user.sub,
           email: user.email,
           name: user.name,
-          given_name: user.given_name || user.firstName,
-          family_name: user.family_name || user.lastName,
+          given_name: user.given_name,
+          family_name: user.family_name,
           locale: user.locale,
           groups: userRoles,
           roles: userRoles,
         }),
       );
 
-      // Initialize socket connection
-      // In MPA mode, socket will use session cookies for authentication
-      const socket = initSocket();
+      // Get access token for socket initialization
+      const accessToken = await getOktaAccessToken();
+      if (!accessToken) {
+        throw new Error('Unable to retrieve access token');
+      }
+
+      const socket = initSocket(accessToken);
       socketInitializedRef.current = true;
 
       // Setup socket event listeners
       setupSocketListeners(socket, dispatch, disableLoading);
 
-      // Monitor initial connection - timeout check
+      // Monitor initial connection - Azure WebSocket timeout check
       const connectionTimeout = setTimeout(() => {
         if (socket && !socket.connected) {
           console.warn('Socket connection timeout - forcing initialization to complete');
@@ -122,6 +124,27 @@ const AuthProvider = ({ children }) => {
       }, 7000); // 7 second timeout for initial connection
 
       connectionTimeoutRef.current = connectionTimeout;
+
+      // Setup token refresh to update socket connection
+      const originalRenew = oktaAuth.tokenManager.renew.bind(oktaAuth.tokenManager);
+      oktaAuth.tokenManager.renew = async function (tokenName) {
+        try {
+          const renewed = await originalRenew(tokenName);
+          if (renewed) {
+            disconnectSocket();
+            socketInitializedRef.current = false;
+            const newAccessToken = await getOktaAccessToken();
+            if (newAccessToken) {
+              const newSocket = initSocket(newAccessToken);
+              setupSocketListeners(newSocket, dispatch, disableLoading);
+            }
+          }
+          return renewed;
+        } catch (error) {
+          console.error('Token renewal error:', error);
+          return false;
+        }
+      };
 
       // Verify connection occurs within timeout period
       socket.on('connect', () => {
@@ -156,25 +179,36 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Initialize app by checking if user has valid session
-   */
-  const handleAppInitialization = async () => {
+  const initializeApp = async () => {
     try {
-      enableLoading();
-
-      // Check if user has valid session
-      const user = await initializeApp();
-
-      if (user) {
-        // User has valid session
-        await handleUserAuthenticatedEvents(user);
-        setAuthError('');
-      } else {
-        // No valid session - redirect to login
-        navigate('/login', { replace: true });
+      if (!validateOktaConfig()) {
+        throw new Error('Invalid Okta configuration');
       }
 
+      enableLoading();
+      const oktaAuth = await initializeOkta();
+      oktaAuthRef.current = oktaAuth;
+
+      // Check auth state
+      const authState = await oktaAuth.authStateManager.getAuthState();
+
+      if (authState?.isAuthenticated) {
+        try {
+          const user = await getOktaUser();
+          if (user) {
+            await handleUserAuthenticatedEvents(oktaAuth, user);
+            setAuthError('');
+          } else {
+            throw new Error('Failed to retrieve user information');
+          }
+        } catch (userError) {
+          console.error('Error retrieving user:', userError);
+          // Try to logout and redirect
+          await oktaLogout();
+          navigate('/login', { replace: true });
+          throw userError;
+        }
+      }
       disableLoading();
     } catch (err) {
       console.error('Error in application initialization:', err);
@@ -196,14 +230,19 @@ const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    handleAppInitialization();
+    initializeApp();
     return () => {
       cleanupApp();
     };
   }, []);
 
-  // Handle login page errors
+  // Handle login callback
   useEffect(() => {
+    if (location.pathname.includes('/callback')) {
+      // Okta SDK handles the callback automatically
+      // The authStateManager will be updated and trigger re-authentication
+    }
+
     if (location.pathname === '/login') {
       const searchParams = new URLSearchParams(location.search);
       const error = searchParams.get('error');
@@ -217,26 +256,7 @@ const AuthProvider = ({ children }) => {
         navigate(location.pathname, { replace: true });
       }
     }
-
-    // After callback processing, initialize socket if authenticated
-    if (!location.pathname.includes('/callback') && !initializationLoading) {
-      const initializeSocketAfterCallback = async () => {
-        try {
-          const authState = await oktaAuthRef.current?.authStateManager.getAuthState();
-          if (authState?.isAuthenticated && !socketInitializedRef.current) {
-            const user = await getOktaUser();
-            if (user) {
-              await handleUserAuthenticatedEvents(oktaAuthRef.current, user);
-            }
-          }
-        } catch (error) {
-          console.error('Error initializing socket after callback:', error);
-        }
-      };
-
-      initializeSocketAfterCallback();
-    }
-  }, [location, navigate, initializationLoading]);
+  }, [location, navigate]);
 
   if (initializationLoading) {
     return (

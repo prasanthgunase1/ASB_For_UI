@@ -19,9 +19,11 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import TALogo from '../../assets/TA-logo.png';
 import classes from './Appbar.module.scss';
-import keycloak from '../../utils/keycloak';
+import { oktaLogout } from '../../utils/okta';
+import { selectUser } from '../../features/auth/authSlice';
 
 const settings = [
   {
@@ -37,13 +39,8 @@ const settings = [
 function Appbar({ appName = 'DeepThought', children }) {
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [logoutLoading, setLogoutLoading] = useState(false);
-  const user = keycloak?.idTokenParsed || '';
-  //update the loading once the user logged out
-  useEffect(() => {
-    if (keycloak.authenticated === false) {
-      setLogoutLoading(false);
-    }
-  }, []);
+  const user = useSelector(selectUser) || {};
+  const dispatch = useDispatch();
 
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
@@ -56,12 +53,11 @@ function Appbar({ appName = 'DeepThought', children }) {
   const handleLogout = async () => {
     try {
       setLogoutLoading(true);
-      await keycloak.logout();
-      // dispatch(logout());
+      await oktaLogout();
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      await new Promise((res) => setTimeout(res), 100);
+      await new Promise((res) => setTimeout(res, 100));
     }
   };
 

@@ -29,7 +29,6 @@ import {
   selectSelectedRole,
 } from '../../features/auth/authSlice';
 import { useAddMessageInDBMutation, useCreateNewConversationMutation } from '../../services/conversationApi';
-import keycloak from '../../utils/keycloak';
 import {
   ALLOWED_FILE_TYPES,
   CONVERSATION_ITEM_STATUS,
@@ -53,7 +52,7 @@ const ChatInput = forwardRef(({ instanceId = 'default', onResetConversation }, r
   const selectedIndustry = useSelector(selectSelectedIndustry);
   const selectedRole = useSelector(selectSelectedRole);
   const activeConversationId = useSelector(selectCurrentPageConversation);
-  const user = keycloak?.idTokenParsed;
+  const user = currentUser;
 
   const [question, setQuestion] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);

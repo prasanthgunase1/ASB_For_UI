@@ -38,7 +38,6 @@ import { useSaveThreadMutation } from '../../services/threadApi';
 import ThreadsPanel from '../ThreadsPanel/ThreadsPanel';
 import classes from './ConversationDashboard.module.scss';
 import { getSocket, initSocket, isSocketConnected } from '../../utils/socket';
-import keycloak from '../../utils/keycloak';
 import FeedbackDialog from '../FeedbackDialog/FeedbackDialog';
 import {
   notifyViaSnackBar,
@@ -177,13 +176,17 @@ function ConversationDashboard() {
   const [getHistoricalData, { isFetching, isError, error: fileFetchError }] = useLazyFetchArchivedDataQuery();
 
   useEffect(() => {
-    if (!socket && keycloak?.token) {
-      initSocket(keycloak.token);
+    if (!socket) {
+      try {
+        initSocket();
+      } catch (error) {
+        console.error('Failed to initialize socket:', error);
+      }
     }
     return () => {
       componentMountedRef.current = false;
     };
-  }, []);
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;

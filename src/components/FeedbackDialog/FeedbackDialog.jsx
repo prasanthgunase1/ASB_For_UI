@@ -16,7 +16,6 @@ import {
   addOrUpdateMessageFeedback,
   deleteMessageFeedback,
 } from "../../redux/store/conversationSlice";
-import keycloak from "../../utils/keycloak";
 import {
   selectUser,
   selectCurrentPageConversation,
@@ -48,7 +47,7 @@ function FeedbackDialog() {
   };
 
   const handleSubmit = async () => {
-    const userEmail = keycloak?.tokenParsed?.email;
+    const userEmail = user?.email;
     if (!comment.trim()) {
       dispatch(
         notifyViaSnackBar({
@@ -69,15 +68,14 @@ function FeedbackDialog() {
     };
 
     try {
-      const token = keycloak?.token;
       const baseURL = import.meta.env.VITE_API_BASE_URL;
 
       await fetch(`${baseURL}/api/conversation/${messageId}/feedback`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -112,14 +110,11 @@ function FeedbackDialog() {
 
   const handleDelete = async () => {
     try {
-      const token = keycloak?.token;
       const baseURL = import.meta.env.VITE_API_BASE_URL;
 
       await fetch(`${baseURL}/api/conversation/${messageId}/feedback`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
 
       // ✅ update Redux immediately

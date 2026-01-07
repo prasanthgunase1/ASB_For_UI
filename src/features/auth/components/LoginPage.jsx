@@ -1,16 +1,25 @@
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { Box, Button, Grid2 as Grid, Typography } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import LeftIcon from '../../../assets/LoginLeftGroup.png';
 import TALogo from '../../../assets/TA-logo.png';
 import LinearLoader from '../../../components/LinearLoader';
 import { setLoading } from '../authSlice';
 import classes from './LoginPage.module.scss';
 import { useEffect } from 'react';
-import keycloak from '../../../utils/keycloak';
+import { checkSessionValidity, initiateLogin } from '../../../utils/okta';
 import { useAuthContext } from '../AuthContext';
 
+/**
+ * LoginPage component for MPA authentication
+ * 
+ * In MPA mode:
+ * - User clicks "Sign in with SSO"
+ * - Frontend redirects to backend login endpoint
+ * - Backend handles all OAuth/SSO authentication
+ * - Backend sets HTTPOnly cookie and redirects back to app
+ */
 const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -20,26 +29,30 @@ const LoginPage = () => {
   const { loading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (keycloak?.authenticated) {
-      const redirect = searchParams.get('redirect');
-      // Change default redirect to dashboard
-      navigate(redirect ? decodeURIComponent(redirect) : '/dashboard', { replace: true });
-    }
-  }, [navigate, searchParams, keycloak?.authenticated]);
+    const checkSessionAndRedirect = async () => {
+      try {
+        const user = await checkSessionValidity();
+        if (user) {
+          const redirect = searchParams.get('redirect');
+          // Change default redirect to dashboard
+          navigate(redirect ? decodeURIComponent(redirect) : '/dashboard', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      }
+    };
+
+    checkSessionAndRedirect();
+  }, [navigate, searchParams]);
 
   const handleLogin = async () => {
     dispatch(setLoading(true));
     try {
-      keycloak.onAuthSuccess = () => {
-        dispatch(setLoading(false));
-      };
-      await keycloak.login();
-      // const redirect = searchParams.get('redirect');
-      // // Change default redirect to dashboard
-      // navigate(redirect ? decodeURIComponent(redirect) : '/dashboard', { replace: true });
+      // Redirect to backend login endpoint
+      // Backend will handle OAuth/SSO authentication
+      initiateLogin();
     } catch (error) {
       console.error('Login failed:', error);
-    } finally {
       dispatch(setLoading(false));
     }
   };
@@ -89,7 +102,6 @@ const LoginPage = () => {
                 className={classes.loginButton}
                 endIcon={<ChevronRightIcon className={classes.sendIcon} />}
                 onClick={handleLogin}>
-                {/* onClick={handleLogin}> */}
                 Sign in with SSO
               </Button>
             )}

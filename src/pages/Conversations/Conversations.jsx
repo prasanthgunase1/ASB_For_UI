@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getUiVisibility, toggleSidebarContent, updateConvesationId } from '../../redux/store/conversationSlice';
 import ChatInput from '../../components/ChatInput/ChatInput';
-import keycloak from '../../utils/keycloak';
+import { selectUser } from '../../features/auth/authSlice';
 import { joinConversation, leaveConversation } from '../../utils/socket/socketActions';
 import BusinessContentContainer from '../../components/BusinessContentContainer/BusinessContentContainer';
 
@@ -24,7 +24,7 @@ const Conversations = () => {
   const dispatch = useDispatch();
   const pathParams = useParams();
   const { conversationId } = pathParams;
-  const user = keycloak?.idTokenParsed || '';
+  const user = useSelector(selectUser) || {};
 
   // Track UI state
   const uiState = useSelector(getUiVisibility);

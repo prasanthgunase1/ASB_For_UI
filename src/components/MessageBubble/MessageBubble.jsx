@@ -45,7 +45,6 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { SENDER_TYPES } from '../../utils/constants';
 import { CombinedMessage } from './MessageTypes';
 import FileList from '../RenderFiles/RenderFile';
-import keycloak from '../../utils/keycloak';
 import ReactMarkdown from 'react-markdown';
 import { selectRunningMessages } from '../../redux/store/queueSlice';
 
@@ -383,12 +382,11 @@ const MessageBubble = ({
   }, [feedback_reaction]);
     // Like button handler
     const handleLikeClick = async () => {
-      const userEmail = keycloak?.tokenParsed?.email;
-      const token = keycloak?.token;
+      const userEmail = user?.email;
       const baseURL = import.meta.env.VITE_API_BASE_URL;
 
-      if (!userEmail || !token) {
-        console.error("User email or token missing.");
+      if (!userEmail) {
+        console.error("User email missing.");
         return;
       }
 
@@ -397,7 +395,7 @@ const MessageBubble = ({
           // DELETE feedback
           await fetch(`${baseURL}/api/conversation/${id}/feedback`, {
             method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
           });
 
           // Update Redux
@@ -423,8 +421,8 @@ const MessageBubble = ({
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
             },
+            credentials: 'include',
             body: JSON.stringify(payload),
           });
 

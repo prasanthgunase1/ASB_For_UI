@@ -21,6 +21,10 @@ export const MESSAGE_TYPES = {
 export const KEYCLOAK = {
   MISSING_GROUP_ERROR: ' Please contact administrator',
 };
+export const OKTA = {
+  MISSING_GROUP_ERROR: 'Insufficient permissions. Please contact administrator',
+  AUTH_ERROR: 'Authentication failed. Please try again.',
+};
 
 // Sender Types for api request
 export const SENDER_TYPES = {

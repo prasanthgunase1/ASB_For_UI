@@ -4,31 +4,26 @@ let socket = null;
 let connectionPromise = null;
 
 /**
- * Socket connection manager optimized for Azure App Service environments
- * - Handles Azure Load Balancer timeout constraints
- * - Provides Azure-specific error handling
- * - Manages reconnection strategies for Azure scaling events
- * - Supports Azure App Service WebSocket configuration
+ * Socket connection manager for MPA (Multi-Page Application)
+ * 
+ * Changes from SPA:
+ * - No token parameter needed (uses HTTPOnly session cookies)
+ * - Simplified initialization
+ * - Session cookies sent automatically with credentials
+ * - No token renewal logic needed
  *
- * @version 3.0.0 - Azure Production Ready
+ * @version 2.0.0 - MPA Architecture
  */
 
 /**
  * Initialize or return existing socket connection with Promise tracking
- * @param {string} token - Authentication token for socket connection
+ * In MPA mode, authentication is handled via HTTPOnly cookies
+ * 
  * @returns {object} Socket.io instance
  */
-export const initSocket = (token) => {
-  if (!token) {
-    console.error('No authentication token provided for socket connection');
-    return null;
-  }
-
-  // If socket exists and is connected, just update token if needed
+export const initSocket = () => {
+  // If socket exists and is connected, return it
   if (socket && socket.connected) {
-    if (socket.auth?.token !== token) {
-      socket.auth = { token };
-    }
     return socket;
   }
 
@@ -40,16 +35,15 @@ export const initSocket = (token) => {
   // If socket exists but is disconnected, try to reconnect instead of creating new
   if (socket && !socket.connected) {
     try {
-      socket.auth = { token };
       socket.connect();
 
       connectionPromise = new Promise((resolve, reject) => {
         const connectTimeout = setTimeout(() => {
           socket.off('connect', connectHandler);
-          console.error('Reconnection timed out, will create new socket');
+          console.error('Reconnection timed out');
           connectionPromise = null;
           reject(new Error('Reconnection timeout'));
-        }, 300000); // Azure App Service optimized timeout
+        }, 300000);
 
         const connectHandler = () => {
           clearTimeout(connectTimeout);
@@ -66,7 +60,7 @@ export const initSocket = (token) => {
           socket.disconnect();
           socket = null;
         }
-        return createNewSocket(token);
+        return createNewSocket();
       });
 
       return socket;
@@ -75,15 +69,16 @@ export const initSocket = (token) => {
     }
   }
 
-  return createNewSocket(token);
+  return createNewSocket();
 };
 
 /**
- * Creates a new Socket.io connection optimized for Azure App Service environments
- * @param {string} token - Authentication token for socket connection
+ * Creates a new Socket.io connection
+ * Uses HTTPOnly cookies for authentication
+ * 
  * @returns {object|null} Socket instance or null if initialization fails
  */
-function createNewSocket(token) {
+function createNewSocket() {
   let wsBaseUrl = import.meta.env.VITE_WS_BASE_URL;
   if (!wsBaseUrl) {
     console.warn('VITE_WS_BASE_URL not configured, using production fallback');
@@ -100,31 +95,28 @@ function createNewSocket(token) {
     }
 
     connectionPromise = new Promise((resolve, reject) => {
-      // Azure App Service optimized socket configuration
+      // MPA socket configuration - uses HTTPOnly cookies for authentication
       socket = io(wsBaseUrl, {
-        auth: { token },
         path: import.meta.env.VITE_API_BASE_PATH ? `${import.meta.env.VITE_API_BASE_PATH}/socket.io/` : '/socket.io/',
         reconnection: true,
         reconnectionAttempts: 8,
-        reconnectionDelay: 1000, // Reduced from 2000
-        reconnectionDelayMax: 8000, // Reduced from 15000
-        timeout: 20000, // Reduced from 30000
-        pingInterval: 15000, // Reduced from 25000 for faster detection
-        pingTimeout: 30000, // Reduced from 60000
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 8000,
+        timeout: 20000,
+        pingInterval: 15000,
+        pingTimeout: 30000,
         transports: ['websocket', 'polling'], // Prioritize websocket
         upgrade: true,
         rememberUpgrade: true,
-        withCredentials: true,
+        withCredentials: true, // Important: Include HTTPOnly cookies
         autoConnect: true,
         forceNew: false,
         extraHeaders: {
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
-          Authorization: `Bearer ${token}`, // Add this
         },
         query: {
-          'azure-client': 'true',
-          'client-version': '3.0.0',
+          'client-version': '2.0.0',
           t: Date.now(), // Cache buster
         },
       });
@@ -136,15 +128,14 @@ function createNewSocket(token) {
       });
 
       socket.on('connect_error', (err) => {
-        console.error('❌ Socket connection error:', err.message);
+        console.error('Socket connection error:', err.message);
         console.error('Error details:', err);
       });
 
-      // Add authentication error handling
+      // Handle server disconnect
       socket.on('disconnect', (reason) => {
         if (reason === 'io server disconnect') {
-          // Server initiated disconnect, likely auth issue
-          console.warn('Server disconnected socket - possible auth issue');
+          console.warn('Server disconnected socket');
         }
       });
 
@@ -187,10 +178,10 @@ export const isSocketConnected = () => {
 };
 
 /**
- * Get Azure connection diagnostics
+ * Get connection diagnostics
  * @returns {object} Connection diagnostic information
  */
-export const getAzureConnectionDiagnostics = () => {
+export const getConnectionDiagnostics = () => {
   if (!socket) return { status: 'not_initialized' };
 
   return {
@@ -218,7 +209,7 @@ export const disconnectSocket = () => {
       connectionPromise = null;
     }
 
-    // Comprehensive cleanup for Azure
+    // Comprehensive cleanup
     socket.offAny();
     socket.removeAllListeners();
 
